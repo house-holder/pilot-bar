@@ -1,7 +1,5 @@
 package main
 
-// comment added for no reason
-
 import (
 	"log/slog"
 
