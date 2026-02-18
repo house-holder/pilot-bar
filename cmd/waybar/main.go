@@ -50,10 +50,10 @@ const (
 )
 
 var cloudIcons = map[string]string{
-	"FEW": "\U000F0A9F",
-	"SCT": "\U000F0AA1",
-	"BKN": "\U000F0AA3",
-	"OVC": "\U000F0AA5",
+	"FEW": "\U000F0468", // 
+	"SCT": "\U000F0A9F", // 󰪟
+	"BKN": "\U000F0AA3", // 󰪣
+	"OVC": "\U000F0AA5", // 󰪥
 }
 
 func formatText(wx types.Airport, format string) string {
@@ -100,7 +100,7 @@ func fmtWind(w types.WindData) string {
 		s = fmt.Sprintf("%03d/%d", w.Direction, w.Speed)
 	}
 	if w.Gusts != nil {
-		s += fmt.Sprintf("g%d", *w.Gusts)
+		s += fmt.Sprintf("G%d", *w.Gusts)
 	}
 	return s
 }
