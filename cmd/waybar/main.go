@@ -62,6 +62,8 @@ func formatText(wx types.Airport, format string) string {
 
 	replacer := strings.NewReplacer(
 		"{temps}", fmt.Sprintf("%d/%d", m.Temp.Ambient, m.Temp.Dewpoint),
+		"{temp}", fmt.Sprintf("%d", m.Temp.Ambient),
+		"{dewpoint}", fmt.Sprintf("%d", m.Temp.Dewpoint),
 		"{winds}", fmtWind(m.Wind),
 		"{cloud-icon}", fmtIf(hasCeiling, icon),
 		"{clouds}", fmtIf(hasCeiling, fmt.Sprintf("%03d", alt)),
@@ -93,9 +95,9 @@ func fmtWind(w types.WindData) string {
 	}
 	var s string
 	if w.Variable {
-		s = fmt.Sprintf("VRB %d", w.Speed)
+		s = fmt.Sprintf("V%d", w.Speed)
 	} else {
-		s = fmt.Sprintf("%03d-%d", w.Direction, w.Speed)
+		s = fmt.Sprintf("%03d/%d", w.Direction, w.Speed)
 	}
 	if w.Gusts != nil {
 		s += fmt.Sprintf("g%d", *w.Gusts)
