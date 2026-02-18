@@ -41,6 +41,18 @@ func main() {
 	flags := setupFlags()
 	InitLogger(flags)
 
+	args := pflag.Args()
+	if len(args) > 0 && args[0] == "switch" {
+		if len(args) < 2 {
+			slog.Error("usage: pilot-bar-daemon switch <ICAO>")
+			return
+		}
+		if err := switchAirport(args[1], flags); err != nil {
+			slog.Error("Switch", "error", err)
+		}
+		return
+	}
+
 	if err := Update(flags); err != nil {
 		slog.Error("Update", "error", err)
 	}

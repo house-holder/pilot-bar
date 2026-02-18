@@ -62,6 +62,7 @@ type TempData struct {
 
 // main internal struct
 type METAR struct {
+	RawOb      string      `json:"rawOb"`
 	Reported   Timestamp   `json:"reported"`
 	FltCat     string      `json:"fltCat"`
 	WxString   string      `json:"wxString"`

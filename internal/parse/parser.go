@@ -21,6 +21,7 @@ type ParseContext struct {
 type parseFunc func(c *ParseContext) error
 
 func BuildInternalMETAR(data *types.METARresponse, output *types.METAR) error {
+	output.RawOb = data.RawOb
 	output.FltCat = data.FltCat
 	output.WxString = data.WxString
 
