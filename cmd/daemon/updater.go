@@ -1,19 +1,17 @@
 package main
 
 import (
-	"encoding/json"
 	"log/slog"
-	"os"
 	"time"
 
+	"github.com/house-holder/pilot-bar/internal/cache"
 	"github.com/house-holder/pilot-bar/internal/fetch"
 	"github.com/house-holder/pilot-bar/internal/parse"
 	"github.com/house-holder/pilot-bar/pkg/types"
 )
 
 const (
-	MaxTries  = 5
-	CachePath = "./testdata/currentWX.json"
+	MaxTries = 5
 
 	// NOTE: seconds vals below, 1min for testing - must edit for prod
 	UpdateInterval = 60
@@ -57,7 +55,11 @@ func (d *UpdateData) NeedsAnyUpdate(force bool) bool {
 }
 
 func Update(flags Flags) error {
-	cachedWX, err := readCachedWX(CachePath, flags)
+	if err := cache.EnsureExists(*flags.Airport); err != nil {
+		return err
+	}
+
+	cachedWX, err := cache.Read()
 	if err != nil {
 		return err
 	}
@@ -95,63 +97,15 @@ func Update(flags Flags) error {
 		cachedWX.Elevation = types.Feet(float64(APImetar.Elev) * 3.28084)
 	}
 
+	cachedWX.Name = APImetar.Name
 	cachedWX.LastUpdateEpoch = time.Now().Unix()
 	cachedWX.METAR.Reported.Epoch = int64(APImetar.ObsTime)
 
-	return writeCachedWX(CachePath, cachedWX)
-}
-
-func ensureCacheExists(jsonPath string, flags Flags) error {
-	if _, err := os.Stat(jsonPath); os.IsNotExist(err) {
-		return writeCachedWX(jsonPath, types.Airport{
-			ICAO:            *flags.Airport,
-			LastUpdateEpoch: time.Now().Unix(),
-			METAR: types.METAR{
-				Reported: types.Timestamp{
-					Epoch: 0,
-				},
-			},
-		})
-	}
-	return nil
-}
-
-func readCachedWX(jsonPath string, flags Flags) (types.Airport, error) {
-	err := ensureCacheExists(jsonPath, flags)
-	if err != nil {
-		return types.Airport{}, err
-	}
-	jsonData, err := os.ReadFile(jsonPath)
-	if err != nil {
-		return types.Airport{}, err
-	}
-	var cachedWX types.Airport
-	err = json.Unmarshal(jsonData, &cachedWX)
-	return cachedWX, nil
-}
-
-func writeCachedWX(jsonPath string, cachedWX types.Airport) error {
-	jsonData, err := json.MarshalIndent(cachedWX, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(jsonPath, jsonData, 0644)
-}
-
-func getCachedICAO(cachePath string) (string, error) {
-	jsonData, err := os.ReadFile(cachePath)
-	if err != nil {
-		return "", err
-	}
-	var cached types.Airport
-	if err := json.Unmarshal(jsonData, &cached); err != nil {
-		return "", err
-	}
-	return cached.ICAO, nil
+	return cache.Write(cachedWX)
 }
 
 func resolveAirport() (string, error) {
-	icao, err := getCachedICAO(CachePath)
+	icao, err := cache.ReadICAO()
 	if err == nil && icao != "" {
 		return icao, nil
 	}

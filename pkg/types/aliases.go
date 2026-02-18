@@ -4,7 +4,7 @@ type (
 	DegMag uint16 // 1-360, degrees magnetic
 	Knots  int
 	Feet   int
-	Mi     int
+	Mi     float64
 	InHg   float64
 )
 

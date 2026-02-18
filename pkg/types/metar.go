@@ -63,8 +63,10 @@ type TempData struct {
 // main internal struct
 type METAR struct {
 	Reported   Timestamp   `json:"reported"`
+	FltCat     string      `json:"fltCat"`
+	WxString   string      `json:"wxString"`
 	Wind       WindData    `json:"wind"`
-	Visibility Mi          `json:"visiblity"`
+	Visibility Mi          `json:"visibility"`
 	Clouds     []CloudData `json:"clouds"`
 	Temp       TempData    `json:"temp"`
 	Altimeter  InHg        `json:"altimeter"`

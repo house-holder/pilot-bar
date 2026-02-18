@@ -21,11 +21,21 @@ type ParseContext struct {
 type parseFunc func(c *ParseContext) error
 
 func BuildInternalMETAR(data *types.METARresponse, output *types.METAR) error {
+	output.FltCat = data.FltCat
+	output.WxString = data.WxString
+
 	output.Temp.AmbientExact = float64(data.Temp)
 	output.Temp.DewpointExact = float64(data.Dewp)
 	output.Temp.Ambient = int(data.Temp)
 	output.Temp.Dewpoint = int(data.Dewp)
 	output.Reported.Age = int(time.Since(time.Unix(data.ObsTime, 0)).Minutes())
+
+	switch v := data.Visib.(type) {
+	case float64:
+		output.Visibility = types.Mi(v)
+	case string:
+		output.Visibility = types.Mi(99)
+	}
 
 	output.Clouds = make([]types.CloudData, 0)
 	for _, layer := range data.Clouds {
@@ -75,18 +85,7 @@ func provideTimeData(timeString string, request string) types.Time {
 }
 
 func provideCloudCover(coverage string) string {
-	switch coverage {
-	case "FEW":
-		return "few"
-	case "SCT":
-		return "scattered"
-	case "BKN":
-		return "broken"
-	case "OVC":
-		return "overcast"
-	default:
-		return coverage
-	}
+	return coverage
 }
 
 // TODO: slices refactor?
