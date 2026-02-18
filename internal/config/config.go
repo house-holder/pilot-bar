@@ -1,14 +1,14 @@
 package config
 
 import (
-	"fmt"
-	"log/slog"
+	"encoding/json"
 	"os"
 	"path/filepath"
 )
 
 type Config struct {
 	Airport string    `json:"airport"`
+	Format  string    `json:"format"`
 	Modules ModuleCfg `json:"modules"`
 }
 
@@ -20,45 +20,44 @@ type ModuleCfg struct {
 	PIREP  bool `json:"pirep"`
 }
 
-func getConfigFile() (string, error) {
-	configDir := os.Getenv("XDG_CONFIG_HOME")
+const defaultFormat = "{temps} {vis} {cloud-icon} {clouds} {wx}"
 
-	if configDir == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("unable to determine home dir: %w", err)
-		}
-
-		configDir = filepath.Join(homeDir, ".config")
+func Load() *Config {
+	defaults := &Config{
+		Format:  defaultFormat,
+		Modules: ModuleCfg{METAR: true},
 	}
 
-	configFile := filepath.Join(configDir, "pilot-bar/config.json")
-	return configFile, nil
+	path, err := configPath()
+	if err != nil {
+		return defaults
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return defaults
+	}
+
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return defaults
+	}
+
+	if cfg.Format == "" {
+		cfg.Format = defaults.Format
+	}
+
+	return &cfg
 }
 
-// Load - satisfied LSP noise
-func Load() (*Config, error) {
-	configFile, err := getConfigFile()
-	if err != nil {
-		return nil, fmt.Errorf("error getting config file: %w", err)
+func configPath() (string, error) {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		dir = filepath.Join(home, ".config")
 	}
-	slog.Info("found config file", "file", configFile)
-
-	// TODO: find a way to navigate things like:
-	// 		- config file doesn't exist
-	//		- config file is unreadable
-	//		- config file is broken/invalid JSON
-
-	cfg, err := os.ReadFile(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("error reading config file: %w", err)
-	}
-	slog.Info("read config file", "file", configFile)
-
-	return &Config{
-		Airport: string(cfg),
-		Modules: ModuleCfg{
-			METAR: true,
-		},
-	}, nil
+	return filepath.Join(dir, "pilot-bar", "config.json"), nil
 }

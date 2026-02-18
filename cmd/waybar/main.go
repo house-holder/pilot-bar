@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/house-holder/pilot-bar/internal/cache"
+	"github.com/house-holder/pilot-bar/internal/config"
 	"github.com/house-holder/pilot-bar/pkg/types"
+	"github.com/spf13/pflag"
 )
 
 type WaybarOutput struct {
@@ -18,13 +20,22 @@ type WaybarOutput struct {
 }
 
 func main() {
+	format := pflag.StringP("format", "f", "", "override config format string")
+	pflag.Parse()
+
+	cfg := config.Load()
+	barFormat := cfg.Format
+	if pflag.Lookup("format").Changed {
+		barFormat = *format
+	}
+
 	wx, err := cache.Read()
 	if err != nil {
 		os.Exit(0)
 	}
 
 	out := WaybarOutput{
-		Text:    formatText(wx),
+		Text:    formatText(wx, barFormat),
 		Tooltip: formatTooltip(wx),
 		Class:   strings.ToLower(wx.METAR.FltCat),
 		Alt:     wx.METAR.FltCat,
@@ -33,7 +44,10 @@ func main() {
 	json.NewEncoder(os.Stdout).Encode(out)
 }
 
-const visUnlimited = 99.0
+const (
+	visUnlimited = 99.0
+	visThreshold = 6.0
+)
 
 var cloudIcons = map[string]string{
 	"FEW": "\U000F0A9F",
@@ -42,25 +56,59 @@ var cloudIcons = map[string]string{
 	"OVC": "\U000F0AA5",
 }
 
-func formatText(wx types.Airport) string {
+func formatText(wx types.Airport, format string) string {
 	m := wx.METAR
-	var parts []string
+	icon, alt, hasCeiling := ceiling(m.Clouds)
 
-	parts = append(parts, fmt.Sprintf("%d/%d", m.Temp.Ambient, m.Temp.Dewpoint))
+	replacer := strings.NewReplacer(
+		"{temps}", fmt.Sprintf("%d/%d", m.Temp.Ambient, m.Temp.Dewpoint),
+		"{winds}", fmtWind(m.Wind),
+		"{cloud-icon}", fmtIf(hasCeiling, icon),
+		"{clouds}", fmtIf(hasCeiling, fmt.Sprintf("%03d", alt)),
+		"{vis}", fmtVis(m.Visibility),
+		"{wx}", m.WxString,
+		"{stationID}", wx.ICAO,
+		"{age}", fmt.Sprintf("%d", m.Reported.Age),
+		"{fltcat}", m.FltCat,
+		"{altimeter}", fmt.Sprintf("%.2f", float64(m.Altimeter)),
+	)
 
-	if float64(m.Visibility) > 0 && float64(m.Visibility) < 6 {
-		parts = append(parts, fmt.Sprintf("%gSM", float64(m.Visibility)))
+	result := replacer.Replace(format)
+	for strings.Contains(result, "  ") {
+		result = strings.ReplaceAll(result, "  ", " ")
 	}
+	return strings.TrimSpace(result)
+}
 
-	if icon, alt, ok := ceiling(m.Clouds); ok {
-		parts = append(parts, fmt.Sprintf("%s %03d", icon, alt))
+func fmtIf(ok bool, val string) string {
+	if ok {
+		return val
 	}
+	return ""
+}
 
-	if m.WxString != "" {
-		parts = append(parts, m.WxString)
+func fmtWind(w types.WindData) string {
+	if w.Calm {
+		return ""
 	}
+	var s string
+	if w.Variable {
+		s = fmt.Sprintf("VRB %d", w.Speed)
+	} else {
+		s = fmt.Sprintf("%03d-%d", w.Direction, w.Speed)
+	}
+	if w.Gusts != nil {
+		s += fmt.Sprintf("g%d", *w.Gusts)
+	}
+	return s
+}
 
-	return strings.Join(parts, " ")
+func fmtVis(vis types.Mi) string {
+	v := float64(vis)
+	if v <= 0 || v >= visThreshold {
+		return ""
+	}
+	return fmt.Sprintf("%gSM", v)
 }
 
 func ceiling(clouds []types.CloudData) (icon string, alt int, ok bool) {

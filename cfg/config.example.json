@@ -1,0 +1,11 @@
+{
+    "airport": "KCGI",
+    "format": "{temps} {vis} {cloud-icon} {clouds} {wx}",
+    "modules": {
+        "metar": true,
+        "taf": false,
+        "discussion": false,
+        "airmet": false,
+        "pirep": false
+    }
+}
