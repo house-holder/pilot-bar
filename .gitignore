@@ -3,6 +3,9 @@
 *.out
 *.log
 
+/daemon
+/waybar
+
 .env
 config.json
 
