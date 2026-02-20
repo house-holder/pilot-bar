@@ -17,7 +17,6 @@ type ParseContext struct {
 	output *types.METAR
 }
 
-// --------------------------------------------------------------------------------------
 type parseFunc func(c *ParseContext) error
 
 func BuildInternalMETAR(data *types.METARresponse, output *types.METAR) error {
