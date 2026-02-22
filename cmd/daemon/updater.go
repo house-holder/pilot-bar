@@ -92,9 +92,32 @@ func Update(flags Flags) error {
 		return err
 	}
 
-	if d.ICAOChanged() {
+	if d.ICAOChanged() || cachedWX.CWA == "" {
 		cachedWX.ICAO = *flags.Airport
 		cachedWX.Elevation = types.Feet(float64(APImetar.Elev) * 3.28084)
+
+		cwa, err := fetch.LookupCWA(APImetar.Lat, APImetar.Long)
+		if err != nil {
+			slog.Warn("CWA lookup failed", "error", err)
+		} else {
+			cachedWX.CWA = cwa
+		}
+	}
+
+	APItaf, err := fetch.GetTAF(*flags.Airport, MaxTries)
+	if err != nil {
+		slog.Warn("TAF fetch failed", "error", err)
+	} else {
+		cachedWX.RawTAF = APItaf.RawTAF
+	}
+
+	if cachedWX.CWA != "" {
+		afd, err := fetch.GetAFD(cachedWX.CWA)
+		if err != nil {
+			slog.Warn("AFD fetch failed", "error", err)
+		} else {
+			cachedWX.RawAFD = afd
+		}
 	}
 
 	cachedWX.Name = APImetar.Name

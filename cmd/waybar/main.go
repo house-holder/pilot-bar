@@ -131,38 +131,23 @@ func ceiling(clouds []types.CloudData) (icon string, alt int, ok bool) {
 }
 
 func formatTooltip(wx types.Airport) string {
-	m := wx.METAR
 	var b strings.Builder
-
-	fmt.Fprintf(&b, "<b>%s</b>", wx.ICAO)
-	if wx.Name != "" {
-		fmt.Fprintf(&b, " — %s", wx.Name)
+	fmt.Fprintf(&b, "<tt>%s</tt>", wx.METAR.RawOb)
+	if wx.RawTAF != "" {
+		fmt.Fprintf(&b, "\n\n<tt>%s</tt>", wrapTAF(wx.RawTAF))
 	}
-	b.WriteString("\n")
-
-	if m.Wind.Calm {
-		b.WriteString("Wind: Calm\n")
-	} else if m.Wind.Variable {
-		fmt.Fprintf(&b, "Wind: Variable at %d kt\n", m.Wind.Speed)
-	} else {
-		fmt.Fprintf(&b, "Wind: %03d° at %d kt", m.Wind.Direction, m.Wind.Speed)
-		if m.Wind.Gusts != nil {
-			fmt.Fprintf(&b, " G%d", *m.Wind.Gusts)
-		}
-		b.WriteString("\n")
+	if wx.RawAFD != "" {
+		fmt.Fprintf(&b, "\n\n%s", wx.RawAFD)
 	}
-
-	if float64(m.Visibility) > 0 && float64(m.Visibility) < visUnlimited {
-		fmt.Fprintf(&b, "Visibility: %g SM\n", float64(m.Visibility))
-	}
-
-	for _, layer := range m.Clouds {
-		fmt.Fprintf(&b, "%s %03d\n", layer.Coverage, int(layer.Base)/100)
-	}
-
-	fmt.Fprintf(&b, "Temp: %d°C / Dewpoint: %d°C\n", m.Temp.Ambient, m.Temp.Dewpoint)
-	fmt.Fprintf(&b, "Altimeter: %.2f inHg\n", m.Altimeter)
-	fmt.Fprintf(&b, "\n<i>%d min ago</i>", m.Reported.Age)
-
 	return b.String()
+}
+
+func wrapTAF(raw string) string {
+	r := strings.NewReplacer(
+		" FM", "\n  FM",
+		" TEMPO", "\n  TEMPO",
+		" BECMG", "\n  BECMG",
+		" PROB", "\n  PROB",
+	)
+	return r.Replace(raw)
 }

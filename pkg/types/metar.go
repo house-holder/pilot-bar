@@ -39,6 +39,10 @@ type METARresponse struct { // the full data returned by the API
 	FltCat string `json:"fltCat"`
 }
 
+type TAFresponse struct {
+	RawTAF string `json:"rawTAF"`
+}
+
 // component structs
 type WindData struct {
 	Direction DegMag `json:"direction"`
