@@ -56,14 +56,19 @@ var cloudIcons = map[string]string{
 	"OVC": "\U000F0AA5", // 󰪥
 }
 
+func convertTemps(ambient, dewpoint float64) (float64, float64) {
+	return (ambient*9.0/5.0 + 32), (dewpoint*9.0/5.0 + 32)
+}
+
 func formatText(wx types.Airport, format string) string {
 	m := wx.METAR
 	icon, alt, hasCeiling := ceiling(m.Clouds)
+	ambF, dewF := convertTemps(m.Temp.AmbientExact, m.Temp.DewpointExact)
 
 	replacer := strings.NewReplacer(
-		"{temps}", fmt.Sprintf("%d/%d", m.Temp.Ambient, m.Temp.Dewpoint),
-		"{temp}", fmt.Sprintf("%d", m.Temp.Ambient),
-		"{dewpoint}", fmt.Sprintf("%d", m.Temp.Dewpoint),
+		"{temps}", fmt.Sprintf("%.1f/%.1f", ambF, dewF),
+		"{temp}", fmt.Sprintf("%.1f", ambF),
+		"{dewpoint}", fmt.Sprintf("%.1f", dewF),
 		"{winds}", fmtWind(m.Wind),
 		"{cloud-icon}", fmtIf(hasCeiling, icon),
 		"{clouds}", fmtIf(hasCeiling, fmt.Sprintf("%03d", alt)),
