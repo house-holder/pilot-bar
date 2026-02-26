@@ -100,7 +100,7 @@ func fmtWind(w types.WindData) string {
 	}
 	var s string
 	if w.Variable {
-		s = fmt.Sprintf("V%d", w.Speed)
+		s = fmt.Sprintf("VRB %d", w.Speed)
 	} else {
 		s = fmt.Sprintf("%03d/%d", w.Direction, w.Speed)
 	}

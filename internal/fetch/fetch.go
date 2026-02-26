@@ -195,7 +195,7 @@ func GetAFD(cwa string) (string, error) {
 	}
 
 	slog.Info("AFD OK")
-	return text, nil
+	return strings.TrimSuffix(text, "\u0003"), nil
 }
 
 func doWithRetry(maxAttempts int, op func(attempt int) (bool, error)) error {
