@@ -50,7 +50,7 @@ const (
 )
 
 var cloudIcons = map[string]string{
-	"FEW": "\U000F0468", // 
+	"FEW": "\U000F0A9E", // 󰪞
 	"SCT": "\U000F0A9F", // 󰪟
 	"BKN": "\U000F0AA3", // 󰪣
 	"OVC": "\U000F0AA5", // 󰪥
