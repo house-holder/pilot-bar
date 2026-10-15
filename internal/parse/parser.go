@@ -184,8 +184,7 @@ func loadWind(ctx *ParseContext) error {
 }
 
 func loadVisibility(ctx *ParseContext) error {
-	lowestRVR := -1
-	lowestStr := ""
+	var rvrParts []string
 
 	for _, token := range ctx.tokens {
 		if !strings.HasPrefix(token, "R") ||
@@ -199,33 +198,18 @@ func loadVisibility(ctx *ParseContext) error {
 			continue
 		}
 		runway := strings.TrimPrefix(parts[0], "R")
-		valuePart := strings.TrimSuffix(parts[1], "FT")
-
-		prefix := ""
-		if strings.HasPrefix(valuePart, "M") {
-			prefix = "<"
-			valuePart = strings.TrimPrefix(valuePart, "M")
-		}
-
-		val, err := strconv.Atoi(valuePart)
-		if err != nil {
-			continue
-		}
-
-		if lowestRVR == -1 || val < lowestRVR {
-			lowestRVR = val
-			lowestStr = fmt.Sprintf("%s/%s%dRVR", runway, prefix, val)
-		}
+		value := strings.TrimSuffix(parts[1], "FT")
+		rvrParts = append(rvrParts, fmt.Sprintf("%s/%sRVR", runway, value))
 	}
 
-	if lowestRVR != -1 {
+	if len(rvrParts) > 0 {
+		s := strings.Join(rvrParts, " ")
+		ctx.output.RVR = &s
 		ctx.output.Visibility = types.Mi(0.24)
-		ctx.output.RVR = &lowestStr
 		return nil
 	}
 
-	// no RVR — proceed with visibility token
-	for i, token := range ctx.tokens {
+	for i, token := range ctx.tokens { // no RVR — proceed with vis
 		token = strings.ReplaceAll(token, "SMSM", "SM")
 
 		if !strings.HasSuffix(token, "SM") {
