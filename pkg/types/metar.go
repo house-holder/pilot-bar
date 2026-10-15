@@ -72,6 +72,7 @@ type METAR struct {
 	WxString   string      `json:"wxString"`
 	Wind       WindData    `json:"wind"`
 	Visibility Mi          `json:"visibility"`
+	RVR        *string     `json:"rvr,omitempty"`
 	Clouds     []CloudData `json:"clouds"`
 	Temp       TempData    `json:"temp"`
 	Altimeter  InHg        `json:"altimeter"`
