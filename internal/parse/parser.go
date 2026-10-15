@@ -19,9 +19,32 @@ type ParseContext struct {
 
 type parseFunc func(c *ParseContext) error
 
+func deriveFltCat(clouds []types.CloudData, vis types.Mi) string {
+	ceiling := 99999
+	for _, layer := range clouds {
+		if layer.Coverage == "BKN" || layer.Coverage == "OVC" {
+			if int(layer.Base) < ceiling {
+				ceiling = int(layer.Base)
+			}
+		}
+	}
+
+	var cat string
+	switch {
+	case ceiling < 500 || vis < 1:
+		cat = "LIFR"
+	case ceiling < 1000 || vis < 3:
+		cat = "IFR"
+	case ceiling < 3000 || vis <= 5:
+		cat = "MVFR"
+	default:
+		cat = "VFR"
+	}
+	return cat
+}
+
 func BuildInternalMETAR(data *types.METARresponse, output *types.METAR) error {
 	output.RawOb = data.RawOb
-	output.FltCat = data.FltCat
 	output.WxString = data.WxString
 
 	output.Temp.AmbientExact = float64(data.Temp)
@@ -49,7 +72,7 @@ func BuildInternalMETAR(data *types.METARresponse, output *types.METAR) error {
 	output.Reported.Local = provideTimeData(data.ReportTime, "local")
 
 	parsers := []parseFunc{
-		loadAltimeter, loadWind, loadWXString, loadRemarks,
+		loadAltimeter, loadWind, loadWXString, loadRemarks, loadVisibility,
 	}
 	c := &ParseContext{
 		tokens: strings.Split(data.RawOb, " "),
@@ -62,6 +85,13 @@ func BuildInternalMETAR(data *types.METARresponse, output *types.METAR) error {
 			return err
 		}
 	}
+
+	if data.FltCat == "" || data.FltCat == "null" {
+		output.FltCat = deriveFltCat(output.Clouds, output.Visibility)
+	} else {
+		output.FltCat = data.FltCat
+	}
+
 	return nil
 }
 
@@ -107,6 +137,9 @@ func loadAltimeter(ctx *ParseContext) error {
 func loadWind(ctx *ParseContext) error {
 	for _, token := range ctx.tokens {
 		if strings.HasSuffix(token, "KT") {
+			if len(token) < 7 {
+				continue // bad token length bailout ("180KT")
+			}
 			if token[:3] == "VRB" {
 				ctx.output.Wind.Direction = types.DegMag(0)
 				ctx.output.Wind.Variable = true
@@ -140,14 +173,103 @@ func loadWind(ctx *ParseContext) error {
 			} else {
 				ctx.output.Wind.Gusts = nil
 			}
-
-			if ctx.output.Wind.Speed == 0 && ctx.output.Wind.Direction == 0 {
-				ctx.output.Wind.Calm = true
-			} else {
-				ctx.output.Wind.Calm = false
-			}
 		}
 	}
+	if ctx.output.Wind.Speed == 0 && ctx.output.Wind.Direction == 0 {
+		ctx.output.Wind.Calm = true
+	} else {
+		ctx.output.Wind.Calm = false
+	}
+	return nil
+}
+
+func loadVisibility(ctx *ParseContext) error {
+	lowestRVR := -1
+	lowestStr := ""
+
+	for _, token := range ctx.tokens {
+		if !strings.HasPrefix(token, "R") ||
+			!strings.Contains(token, "/") ||
+			!strings.HasSuffix(token, "FT") {
+			continue
+		}
+
+		parts := strings.SplitN(token, "/", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		runway := strings.TrimPrefix(parts[0], "R")
+		valuePart := strings.TrimSuffix(parts[1], "FT")
+
+		prefix := ""
+		if strings.HasPrefix(valuePart, "M") {
+			prefix = "<"
+			valuePart = strings.TrimPrefix(valuePart, "M")
+		}
+
+		val, err := strconv.Atoi(valuePart)
+		if err != nil {
+			continue
+		}
+
+		if lowestRVR == -1 || val < lowestRVR {
+			lowestRVR = val
+			lowestStr = fmt.Sprintf("%s/%s%dRVR", runway, prefix, val)
+		}
+	}
+
+	if lowestRVR != -1 {
+		ctx.output.Visibility = types.Mi(0.24)
+		ctx.output.RVR = &lowestStr
+		return nil
+	}
+
+	// no RVR — proceed with visibility token
+	for i, token := range ctx.tokens {
+		token = strings.ReplaceAll(token, "SMSM", "SM")
+
+		if !strings.HasSuffix(token, "SM") {
+			continue
+		}
+
+		if strings.HasPrefix(token, "P") {
+			ctx.output.Visibility = types.Mi(99)
+			return nil
+		}
+
+		if strings.HasPrefix(token, "M") {
+			ctx.output.Visibility = types.Mi(0.24)
+			return nil
+		}
+
+		if strings.Contains(token, "/") {
+			parts := strings.Split(strings.TrimSuffix(token, "SM"), "/")
+			if len(parts) == 2 {
+				num, err1 := strconv.Atoi(parts[0])
+				den, err2 := strconv.Atoi(parts[1])
+				if err1 != nil || err2 != nil || den == 0 {
+					return fmt.Errorf("loadVisibility: bad parsing %q", token)
+				}
+				frac := float64(num) / float64(den)
+				if i > 0 {
+					if whole, err := strconv.Atoi(ctx.tokens[i-1]); err == nil {
+						frac += float64(whole)
+					}
+				}
+				ctx.output.Visibility = types.Mi(frac)
+				return nil
+			}
+		}
+
+		val, err := strconv.ParseFloat(strings.TrimSuffix(token, "SM"), 64)
+		if err != nil {
+			return fmt.Errorf("loadVisibility: bad parsing %q: %w", token, err)
+		}
+		ctx.output.Visibility = types.Mi(val)
+		return nil
+	}
+
+	ctx.output.Visibility = types.Mi(99)
 	return nil
 }
 
