@@ -76,7 +76,7 @@ func formatText(wx types.Airport, format string, tempUnit string) string {
 		"{winds}", fmtWind(m.Wind),
 		"{cloud-icon}", fmtIf(hasCeiling, icon),
 		"{clouds}", fmtIf(hasCeiling, fmt.Sprintf("%03d", alt)),
-		"{vis}", fmtVis(m.Visibility),
+		"{vis}", fmtVis(m),
 		"{wx}", m.WxString,
 		"{station}", wx.ICAO,
 		"{age}", fmt.Sprintf("%d", m.Reported.Age),
@@ -100,7 +100,7 @@ func fmtIf(ok bool, val string) string {
 
 func fmtWind(w types.WindData) string {
 	if w.Calm {
-		return ""
+		return "WC"
 	}
 	var s string
 	if w.Variable {
@@ -114,8 +114,11 @@ func fmtWind(w types.WindData) string {
 	return s
 }
 
-func fmtVis(vis types.Mi) string {
-	v := float64(vis)
+func fmtVis(m types.METAR) string {
+	if m.RVR != nil {
+		return *m.RVR
+	}
+	v := float64(m.Visibility)
 	if v <= 0 || v >= visThreshold {
 		return ""
 	}
