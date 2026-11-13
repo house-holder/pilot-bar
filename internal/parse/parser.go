@@ -44,9 +44,10 @@ func deriveFltCat(clouds []types.CloudData, vis types.Mi) string {
 }
 
 func BuildInternalMETAR(data *types.METARresponse, output *types.METAR) error {
+	*output = types.METAR{}
+
 	output.RawOb = data.RawOb
 	output.WxString = data.WxString
-
 	output.Temp.AmbientExact = float64(data.Temp)
 	output.Temp.DewpointExact = float64(data.Dewp)
 	output.Temp.Ambient = int(data.Temp)
