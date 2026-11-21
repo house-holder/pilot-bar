@@ -3,6 +3,9 @@
 *.out
 *.log
 
+pilot-bar
+pilot-bar-daemon
+
 /daemon
 /waybar
 
